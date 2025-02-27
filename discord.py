@@ -1,14 +1,11 @@
 import json
 import time
-import shareithub
 import os
 import random
 import requests
 from dotenv import load_dotenv
 from datetime import datetime
-from shareithub import shareithub
 
-shareithub()
 load_dotenv()
 
 discord_token = os.getenv('DISCORD_TOKEN')
@@ -21,7 +18,7 @@ last_ai_response = None  # Menyimpan respons AI terakhir
 def log_message(message):
     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}")
 
-def generate_reply(prompt, use_google_ai=True, use_file_reply=False, language="id"):
+def generate_reply(prompt, use_google_ai=True, use_file_reply=False):
     """Membuat balasan, menghindari duplikasi jika menggunakan Google Gemini AI"""
 
     global last_ai_response  # Gunakan variabel global agar dapat diakses di seluruh sesi
@@ -31,11 +28,7 @@ def generate_reply(prompt, use_google_ai=True, use_file_reply=False, language="i
         return {"candidates": [{"content": {"parts": [{"text": get_random_message()}]}}]}
 
     if use_google_ai:
-        # Pilihan bahasa
-        if language == "en":
-            ai_prompt = f"{prompt}\n\nRespond with only one sentence in casual urban English, like a natural conversation, and do not use symbols."
-        else:
-            ai_prompt = f"{prompt}\n\nBerikan 1 kalimat saja dalam bahasa gaul daerah Jakarta seperti obrolan dan jangan gunakan simbol apapun."
+        ai_prompt = f"{prompt}\n\nRespond with only one sentence, like a natural conversation, and do not use symbols."
 
         url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={google_api_key}'
         headers = {'Content-Type': 'application/json'}
@@ -54,7 +47,7 @@ def generate_reply(prompt, use_google_ai=True, use_file_reply=False, language="i
                 if response_text == last_ai_response:
                     log_message("⚠️ AI memberikan balasan yang sama, mencoba ulang...")
                     continue  # Coba lagi dengan permintaan baru
-                
+
                 last_ai_response = response_text  # Simpan respons terbaru
                 return ai_response
 
@@ -106,7 +99,7 @@ def send_message(channel_id, message_text, reply_to=None, reply_mode=True):
     except requests.exceptions.RequestException as e:
         log_message(f"⚠️ Request error: {e}")
 
-def auto_reply(channel_id, read_delay, reply_delay, use_google_ai, use_file_reply, language, reply_mode):
+def auto_reply(channel_id, read_delay, reply_delay, use_google_ai, use_file_reply, reply_mode):
     """Fungsi untuk auto-reply di Discord dengan menghindari duplikasi AI"""
     global last_message_id, bot_user_id
 
@@ -137,7 +130,7 @@ def auto_reply(channel_id, read_delay, reply_delay, use_google_ai, use_file_repl
                         user_message = most_recent_message.get('content', '')
                         log_message(f"💬 Received message: {user_message}")
 
-                        result = generate_reply(user_message, use_google_ai, use_file_reply, language)
+                        result = generate_reply(user_message, use_google_ai, use_file_reply)
                         response_text = result['candidates'][0]['content']['parts'][0]['text'] if result else "Maaf, tidak dapat membalas pesan."
 
                         log_message(f"⏳ Waiting {reply_delay} seconds before replying...")
@@ -159,17 +152,12 @@ if __name__ == "__main__":
         use_google_ai = input("Gunakan Google Gemini AI untuk balasan? (y/n): ").lower() == 'y'
         use_file_reply = input("Gunakan pesan dari file pesan.txt? (y/n): ").lower() == 'y'
         reply_mode = input("Ingin membalas pesan (reply) atau hanya mengirim pesan? (reply/send): ").lower() == 'reply'
-        language_choice = input("Pilih bahasa untuk balasan (id/en): ").lower()
-
-        if language_choice not in ["id", "en"]:
-            log_message("⚠️ Bahasa tidak valid, default ke bahasa Indonesia.")
-            language_choice = "id"
 
         read_delay = int(input("Set Delay Membaca Pesan Terbaru (dalam detik): "))
         reply_delay = int(input("Set Delay Balas Pesan (dalam detik): "))
 
-        log_message(f"✅ Mode reply {'aktif' if reply_mode else 'non-reply'} dalam bahasa {'Indonesia' if language_choice == 'id' else 'Inggris'}...")
-        auto_reply(channel_id, read_delay, reply_delay, use_google_ai, use_file_reply, language_choice, reply_mode)
+        log_message(f"✅ Mode reply {'aktif' if reply_mode else 'non-reply'}...")
+        auto_reply(channel_id, read_delay, reply_delay, use_google_ai, use_file_reply, reply_mode)
 
     else:
         send_interval = int(input("Set Interval Pengiriman Pesan (dalam detik): "))
